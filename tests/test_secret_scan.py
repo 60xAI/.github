@@ -27,7 +27,7 @@ class SecretScanTest(unittest.TestCase):
             (repo / 'README.md').write_text('Synthetic secret-scanner test.\n')
             self.commit(repo, 'Clean base')
             base = run('git', 'rev-parse', 'HEAD', cwd=repo).stdout.strip()
-            api_key = 'sk_' + 'live_' + 'F' * 43
+            api_key = 'sk_' + 'live_' + 'F' * 42 + '-'
             (repo / 'fake.txt').write_text('Obviously fake scanner fixture: ' + api_key + '\n')
             self.commit(repo, 'Synthetic API credential')
             baseline = run('gitleaks', 'git', '.', '--log-opts=--all', '--redact=100', '--no-banner', cwd=repo)
