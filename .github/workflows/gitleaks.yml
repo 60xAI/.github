@@ -13,11 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Fetch Git history without checking out files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$HEAD_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          git init --quiet .
+          git remote add origin "$SERVER_URL/$REPOSITORY.git"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          export GIT_CONFIG_COUNT=2
+          export GIT_CONFIG_KEY_0=http.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
+          export GIT_CONFIG_KEY_1=fetch.recurseSubmodules
+          export GIT_CONFIG_VALUE_1=false
+          git -c credential.helper= fetch --quiet origin \
+            '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
+          git -c credential.helper= fetch --quiet origin "$HEAD_SHA"
+          git update-ref refs/security/scan-head "$HEAD_SHA"
       - name: Install pinned scanner
         shell: bash
         run: |

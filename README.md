@@ -23,6 +23,8 @@ jobs:
 
 The job named `secrets / gitleaks` must pass on pull requests. PR scans cover commits between the base and head, including credentials added and subsequently removed in that range. Scheduled and manual runs scan every fetched branch and tag, including deleted files in reachable history. Unreachable or server-only objects are outside the scan.
 
+The workflow fetches Git objects without checking out files or initializing submodules. Broken submodule metadata cannot disable the scan, and caller code is never executed. Git LFS object contents are outside this Git-object scan.
+
 The central config extends the pinned gitleaks default rules with AI Brain `sk_live_` API keys, GCP JSON private keys, MCP refresh tokens and client secrets, and contextual agent-mail browser/access tokens. Unprefixed tokens need a recognizable assignment name. The default rules also detect private keys, provider tokens, and JSON Web Tokens. These rules cannot identify every arbitrary random string.
 
 Caller `.gitleaks.toml`, `.gitleaksignore`, and inline `gitleaks:allow` comments cannot waive this scan. The upstream rules include their normal file and synthetic-value exclusions. Reports retain only file paths and rule IDs. Raw scan output, matches, secret values, and code snippets are never published. A scanner error fails the job.
