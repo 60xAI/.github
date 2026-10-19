@@ -62,6 +62,45 @@ class SecretScanTest(unittest.TestCase):
             self.assertEqual(json.loads((scratch/'gitleaks-findings.json').read_text()), [])
             print('Baseline: default rules miss the fake API key. Custom rules: all four block. Clean PR range: passes despite historical fixtures.')
 
+    def test_merge_resolution_credentials_are_scanned(self):
+        workflow = WORKFLOW.read_text()
+        step = workflow.split('      - name: Scan with central credential rules\n', 1)[1]
+        block = step.split('        run: |\n', 1)[1].split('      - name: Save paths', 1)[0]
+        script = '\n'.join(line[10:] if line.startswith('          ') else line for line in block.splitlines())
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp, 'repo'); repo.mkdir()
+            scratch = Path(tmp, 'runner'); scratch.mkdir()
+            for args in [('init','-q'),('config','user.name','Security Test'),('config','user.email','test@example.invalid')]:
+                self.assertEqual(run('git', *args, cwd=repo).returncode, 0)
+            (repo/'resolution.txt').write_text('Common base.\n')
+            self.commit(repo, 'Common base')
+            primary = run('git','branch','--show-current',cwd=repo).stdout.strip()
+            self.assertEqual(run('git','checkout','-qb','side',cwd=repo).returncode, 0)
+            (repo/'resolution.txt').write_text('Clean side change.\n')
+            self.commit(repo, 'Clean side')
+            side = run('git','rev-parse','HEAD',cwd=repo).stdout.strip()
+            self.assertEqual(run('git','checkout',primary,cwd=repo).returncode, 0)
+            (repo/'resolution.txt').write_text('Clean main change.\n')
+            self.commit(repo, 'Clean main')
+            base = run('git','rev-parse','HEAD',cwd=repo).stdout.strip()
+            (repo/'resolution.txt').write_text('Synthetic resolution: ' + 'sk_' + 'live_' + 'F'*43 + '\n')
+            self.assertEqual(run('git','add','.',cwd=repo).returncode, 0)
+            tree = run('git','write-tree',cwd=repo).stdout.strip()
+            merged = run('git','commit-tree',tree,'-p',base,'-p',side,'-m','Synthetic two-parent resolution',cwd=repo)
+            self.assertEqual(merged.returncode, 0)
+            head = merged.stdout.strip()
+            self.assertEqual(run('git','update-ref','refs/heads/'+primary,head,cwd=repo).returncode, 0)
+            env = os.environ | {'RUNNER_TEMP':str(scratch),'GITHUB_STEP_SUMMARY':str(scratch/'summary'),
+                                'GITHUB_OUTPUT':str(scratch/'output'),'BASE_SHA':base,'HEAD_SHA':head}
+            for full in ['false','true']:
+                env['FULL_HISTORY'] = full
+                (scratch/'output').write_text('')
+                result = run('bash','-c',script,cwd=repo,env=env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('result=10',(scratch/'output').read_text(), 'Merge-only credential missed in mode full_history='+full)
+                findings = json.loads((scratch/'gitleaks-findings.json').read_text())
+                self.assertIn({'path':'resolution.txt','rule_id':'60x-api-key'},findings)
+
     def commit(self, repo, message):
         self.assertEqual(run('git', 'add', '.', cwd=repo).returncode, 0)
         self.assertEqual(run('git', 'commit', '-qm', message, cwd=repo).returncode, 0)

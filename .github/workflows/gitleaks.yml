@@ -84,10 +84,10 @@ jobs:
           secretGroup = 1
           keywords = ["client_secret", "browser_token", "agent_mail_token"]
           TOML
-          log_opts='--all'
+          log_opts='--all --diff-merges=first-parent'
           if [[ "$FULL_HISTORY" != true ]]; then
             [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ && "$HEAD_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Missing valid scan range'; exit 2; }
-            log_opts="$BASE_SHA..$HEAD_SHA"
+            log_opts="$BASE_SHA..$HEAD_SHA --diff-merges=first-parent"
           fi
           mkdir -p "$RUNNER_TEMP/empty-gitleaks-ignore"
           raw="$RUNNER_TEMP/gitleaks-redacted.json"
