@@ -5,12 +5,16 @@ on:
       full_history:
         type: boolean
         default: false
+      use_blacksmith:
+        description: Use the organization's approved Blacksmith Ubuntu runner
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   scan:
     name: gitleaks
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.use_blacksmith && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       - name: Fetch Git history without checking out files
