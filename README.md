@@ -21,6 +21,13 @@ jobs:
       full_history: ${{ github.event_name != 'pull_request' && github.event_name != 'merge_group' }}
 ```
 
+The default runner remains GitHub-hosted `ubuntu-latest`. Repositories already
+enabled for the organization's Blacksmith runners can pass `use_blacksmith: true`
+alongside `full_history` to use `blacksmith-4vcpu-ubuntu-2404`. This changes only
+where the same scan runs; its rules, history range, redaction, failure handling
+and required `secrets / gitleaks` check remain unchanged. The boolean option
+selects between these two labels rather than accepting arbitrary runner labels.
+
 The job named `secrets / gitleaks` must pass on pull requests. PR scans cover commits between the base and head, including credentials added and subsequently removed in that range. Merge commits are diffed against their first parent, including credentials introduced only while resolving a conflict. Scheduled and manual runs scan every fetched branch and tag, including deleted files in reachable history. Unreachable or server-only objects are outside the scan.
 
 The workflow fetches Git objects without checking out files or initializing submodules. Broken submodule metadata cannot disable the scan, and caller code is never executed. Git LFS object contents are outside this Git-object scan.
