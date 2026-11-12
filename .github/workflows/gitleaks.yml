@@ -55,6 +55,7 @@ jobs:
         shell: bash
         env:
           FULL_HISTORY: ${{ inputs.full_history }}
+          REPOSITORY: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -88,6 +89,21 @@ jobs:
           secretGroup = 1
           keywords = ["client_secret", "browser_token", "agent_mail_token"]
           TOML
+          # This historical value is only a Terraform random_password keeper,
+          # not its generated password. Gitleaks line targets can retain one preceding
+          # newline; keep the assignment exact and the exception caller-bound.
+          if [[ "${REPOSITORY:-}" == '60xAI/ai-brain-workspace' ]]; then
+            cat >> "$config" <<'TOML'
+          [[rules]]
+          id = "generic-api-key"
+          [[rules.allowlists]]
+          description = "Known non-secret Dagster rotation keeper in the workspace helper"
+          condition = "AND"
+          regexTarget = "line"
+          paths = ['''^scripts/tavily-prod-terraform\.sh$''']
+          regexes = ['''^\n?export TF_VAR_dagster_app_password_rotation[=]2026-09-01-dagster-v1$''']
+          TOML
+          fi
           log_opts='--all --diff-merges=first-parent'
           if [[ "$FULL_HISTORY" != true ]]; then
             [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ && "$HEAD_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Missing valid scan range'; exit 2; }
