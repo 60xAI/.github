@@ -13,12 +13,15 @@ WORKFLOW = ROOT / '.github/workflows/gitleaks.yml'
 def run(*args, cwd, env=None):
     return subprocess.run(args, cwd=cwd, env=env, text=True, capture_output=True)
 
+def scan_script():
+    workflow = WORKFLOW.read_text()
+    step = workflow.split('      - name: Scan with central credential rules\n', 1)[1]
+    block = step.split('        run: |\n', 1)[1].split('      - name: Save paths', 1)[0]
+    return '\n'.join(line[10:] if line.startswith('          ') else line for line in block.splitlines())
+
 class SecretScanTest(unittest.TestCase):
     def test_custom_credentials_block_and_reports_omit_values(self):
-        workflow = WORKFLOW.read_text()
-        step = workflow.split('      - name: Scan with central credential rules\n', 1)[1]
-        block = step.split('        run: |\n', 1)[1].split('      - name: Save paths', 1)[0]
-        script = '\n'.join(line[10:] if line.startswith('          ') else line for line in block.splitlines())
+        script = scan_script()
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp, 'repo'); repo.mkdir()
             scratch = Path(tmp, 'runner'); scratch.mkdir()
@@ -63,10 +66,7 @@ class SecretScanTest(unittest.TestCase):
             print('Baseline: default rules miss the fake API key. Custom rules: all four block. Clean PR range: passes despite historical fixtures.')
 
     def test_merge_resolution_credentials_are_scanned(self):
-        workflow = WORKFLOW.read_text()
-        step = workflow.split('      - name: Scan with central credential rules\n', 1)[1]
-        block = step.split('        run: |\n', 1)[1].split('      - name: Save paths', 1)[0]
-        script = '\n'.join(line[10:] if line.startswith('          ') else line for line in block.splitlines())
+        script = scan_script()
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp, 'repo'); repo.mkdir()
             scratch = Path(tmp, 'runner'); scratch.mkdir()
@@ -100,6 +100,51 @@ class SecretScanTest(unittest.TestCase):
                 self.assertIn('result=10',(scratch/'output').read_text(), 'Merge-only credential missed in mode full_history='+full)
                 findings = json.loads((scratch/'gitleaks-findings.json').read_text())
                 self.assertIn({'path':'resolution.txt','rule_id':'60x-api-key'},findings)
+
+
+    def test_rotation_marker_exception_preserves_same_path_credentials(self):
+        self.assertEqual(run('gitleaks', 'version', cwd=ROOT).stdout.strip(), '8.30.1')
+        marker = '2026-09-01-' + 'dagster-v1'
+        # Fixed and explicitly unissued: this is only a local scanner canary.
+        canary = 'n7Gk2Vq5_j8B4Cw6Fz9H1Lm3Pr0StXyU-adeOAbcDeFgHiJk'
+        assignment = 'export TF_VAR_dagster_app_password_rotation='
+        path = 'scripts/tavily-prod-terraform.sh'
+        workspace = '60xAI/ai-brain-workspace'
+        cases = [
+            ('known keeper', path, assignment + marker, 0, workspace),
+            ('same context credential', path, assignment + canary, 10, workspace),
+            ('different marker', path, assignment + '2026-09-02-dagster-v1', 10, workspace),
+            ('password value', path, 'export TF_VAR_dagster_app_password=' + marker, 10, workspace),
+            ('different path', 'scripts/other.sh', assignment + marker, 10, workspace),
+            ('different repository', path, assignment + marker, 10, '60xAI/example'),
+        ]
+        for label, filename, line, expected, repository in cases:
+            for prefix in ('', '# Synthetic scanner fixture\n'):
+                with self.subTest(label, preceding_line=bool(prefix)), tempfile.TemporaryDirectory() as tmp:
+                    repo = Path(tmp, 'repo'); repo.mkdir()
+                    scratch = Path(tmp, 'runner'); scratch.mkdir()
+                    for args in [('init', '-q'), ('config', 'user.name', 'Security Test'),
+                                 ('config', 'user.email', 'test@example.invalid')]:
+                        self.assertEqual(run('git', *args, cwd=repo).returncode, 0)
+                    target = repo / filename
+                    target.parent.mkdir(parents=True)
+                    # Gitleaks line targets retain the preceding newline in history fragments.
+                    target.write_text(prefix + line + '\n# End fixture\n')
+                    self.commit(repo, 'Synthetic rotation or credential fixture')
+                    env = os.environ | {'RUNNER_TEMP': str(scratch),
+                                        'GITHUB_STEP_SUMMARY': str(scratch/'summary'),
+                                        'GITHUB_OUTPUT': str(scratch/'output'),
+                                        'FULL_HISTORY': 'true', 'BASE_SHA': '', 'HEAD_SHA': '',
+                                        'REPOSITORY': repository}
+                    result = run('bash', '-c', scan_script(), cwd=repo, env=env)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn('result=' + str(expected), (scratch/'output').read_text())
+                    report = json.loads((scratch/'gitleaks-findings.json').read_text())
+                    if expected:
+                        self.assertIn({'path': filename, 'rule_id': 'generic-api-key'}, report)
+                    else:
+                        self.assertEqual(report, [])
+                    self.assertFalse((scratch/'gitleaks-redacted.json').exists())
 
     def commit(self, repo, message):
         self.assertEqual(run('git', 'add', '.', cwd=repo).returncode, 0)

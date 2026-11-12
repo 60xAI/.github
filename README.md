@@ -36,6 +36,13 @@ The central config extends the pinned gitleaks default rules with AI Brain `sk_l
 
 Caller `.gitleaks.toml`, `.gitleaksignore`, and inline `gitleaks:allow` comments cannot waive this scan. The upstream rules include their normal file and synthetic-value exclusions. Reports retain only file paths and rule IDs. Raw scan output, matches, secret values, and code snippets are never published. A scanner error fails the job.
 
+One reviewed exception recognizes the workspace Terraform helper's exact historical
+Dagster password-rotation keeper. It is bound to `60xAI/ai-brain-workspace`, the
+`generic-api-key` rule, the exact script path and the complete non-secret assignment.
+A different value, assignment, path or caller remains scanned; this does not allow
+passwords or grant callers a configurable waiver. The scanner regression suite
+checks all of these boundaries using an unissued credential-shaped canary.
+
 When a scan fails, inspect the reported path privately. Assign genuine exposures to the owner of the credential and rotate under SOC2 F05. Remove the credential from current code; do not rewrite shared history. A weekly scan continues to fail for historical exposures until an explicit, reviewed exception policy exists. This workflow does not automatically waive old findings or rotate keys.
 
 Run `PATH="<gitleaks-bin>:$PATH" python3 tests/test_secret_scan.py` to exercise the actual workflow scan step against synthetic credentials in a temporary Git repository. The gitleaks version must match the workflow. Validate workflow syntax with `actionlint`.
