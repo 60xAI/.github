@@ -124,6 +124,31 @@ jobs:
           regexes = ['''^\n?export TF_VAR_dagster_app_password_rotation[=]2026-09-01-dagster-v1$''']
           TOML
           fi
+          # Two historical pipelines findings, bound to the exact commit and path that
+          # added them, so the same path or value in any other commit still fails.
+          # The sign-in webhook was reviewed and kept by its owner (ai-brain-platform#1601).
+          # The tracing-guard value is a fake test key in a since-removed test.
+          if [[ "${REPOSITORY:-}" == '60xAI/ai-brain-pipelines' ]]; then
+            cat >> "$config" <<'TOML'
+          [[allowlists]]
+          description = "Reviewed sign-in webhook added by the pipelines seed commit"
+          condition = "AND"
+          targetRules = ["slack-webhook-url"]
+          commits = ["874c2f2814df6febaa0f3e2ac656cef02a84cfe8"]
+          paths = ['''^backend/app/api/routes/auth\.py$''']
+          [[allowlists]]
+          description = "Fake LangSmith key in the removed tracing-guard test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          # The test commit, then the two merges that carried it into development.
+          commits = [
+            "93e97b5ed28e929ea9a070be57baaa3bd78bb155",
+            "db676a8a993e97f42634b12d359f649052dbc544",
+            "6b7dcbf2ee692e8877339b8e588c064e08b863f6",
+          ]
+          paths = ['''^backend/tests/test_tracing_guard\.py$''']
+          TOML
+          fi
           log_opts='--all --diff-merges=first-parent'
           if [[ "$FULL_HISTORY" != true ]]; then
             [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ && "$HEAD_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Missing valid scan range'; exit 2; }
