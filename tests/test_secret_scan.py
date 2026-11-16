@@ -146,6 +146,37 @@ class SecretScanTest(unittest.TestCase):
                         self.assertEqual(report, [])
                     self.assertFalse((scratch/'gitleaks-redacted.json').exists())
 
+    def test_pipelines_history_exceptions_only_cover_their_own_commits(self):
+        # The pipelines exceptions are bound to exact historical commits, so a new
+        # commit on the same path must still be blocked. Synthetic, unissued values.
+        webhook = 'https://hooks.slack.com/services/' + 'T0SYNTHETIC/B0SYNTHETIC/' + 'abcdefghijklmnopqrstuvwx'
+        key = 'lsv2_' + 'Q7mZp3Lx9KvR2tYwB8nC'
+        cases = [
+            ('backend/app/api/routes/auth.py', f'URL = "{webhook}"', 'slack-webhook-url'),
+            ('backend/tests/test_tracing_guard.py', f'API_KEY = "{key}"', 'generic-api-key'),
+        ]
+        for filename, line, rule in cases:
+            with self.subTest(filename), tempfile.TemporaryDirectory() as tmp:
+                repo = Path(tmp, 'repo'); repo.mkdir()
+                scratch = Path(tmp, 'runner'); scratch.mkdir()
+                for args in [('init', '-q'), ('config', 'user.name', 'Security Test'),
+                             ('config', 'user.email', 'test@example.invalid')]:
+                    self.assertEqual(run('git', *args, cwd=repo).returncode, 0)
+                target = repo / filename
+                target.parent.mkdir(parents=True)
+                target.write_text(line + '\n')
+                self.commit(repo, 'Synthetic credential on an excepted path')
+                env = os.environ | {'RUNNER_TEMP': str(scratch),
+                                    'GITHUB_STEP_SUMMARY': str(scratch/'summary'),
+                                    'GITHUB_OUTPUT': str(scratch/'output'),
+                                    'FULL_HISTORY': 'true', 'BASE_SHA': '', 'HEAD_SHA': '',
+                                    'REPOSITORY': '60xAI/ai-brain-pipelines'}
+                result = run('bash', '-c', scan_script(), cwd=repo, env=env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('result=10', (scratch/'output').read_text())
+                report = json.loads((scratch/'gitleaks-findings.json').read_text())
+                self.assertIn({'path': filename, 'rule_id': rule}, report)
+
     def commit(self, repo, message):
         self.assertEqual(run('git', 'add', '.', cwd=repo).returncode, 0)
         self.assertEqual(run('git', 'commit', '-qm', message, cwd=repo).returncode, 0)
