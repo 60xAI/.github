@@ -43,6 +43,14 @@ A different value, assignment, path or caller remains scanned; this does not all
 passwords or grant callers a configurable waiver. The scanner regression suite
 checks all of these boundaries using an unissued credential-shaped canary.
 
+The central `generic-api-key` rule has two reviewed, exact-match allowlists for
+the native post-processing worker: its public Asymmetrix companies route and
+three named source-file SHA256 provenance values. Each requires both the exact
+repository-relative file path and the entire matched text. These exceptions do
+not exclude files, commits, arbitrary hashes, or other findings on the same
+line. Different values, assignment names, or paths still use the inherited
+credential rule. Any additional false positive requires a central policy review.
+
 When a scan fails, inspect the reported path privately. Assign genuine exposures to the owner of the credential and rotate under SOC2 F05. Remove the credential from current code; do not rewrite shared history. A weekly scan continues to fail for historical exposures until an explicit, reviewed exception policy exists. This workflow does not automatically waive old findings or rotate keys.
 
-Run `PATH="<gitleaks-bin>:$PATH" python3 tests/test_secret_scan.py` to exercise the actual workflow scan step against synthetic credentials in a temporary Git repository. The gitleaks version must match the workflow. Validate workflow syntax with `actionlint`.
+Run `PATH="<gitleaks-bin>:$PATH" python3 -m unittest discover -s tests -v` to exercise the actual workflow scan step against synthetic credentials and reviewed public metadata in temporary Git repositories. Tests cover PR ranges, full history, removed credentials, merge resolutions, and additional credentials on the same metadata line. The gitleaks version must match the workflow. Validate workflow syntax with `actionlint`.
