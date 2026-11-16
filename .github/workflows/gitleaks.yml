@@ -139,7 +139,7 @@ jobs:
         with:
           name: gitleaks-findings
           path: ${{ runner.temp }}/gitleaks-findings.json
-          retention-days: 30
+          retention-days: 14
           if-no-files-found: error
       - name: Enforce scan result
         if: steps.scan.outputs.result != '0'
