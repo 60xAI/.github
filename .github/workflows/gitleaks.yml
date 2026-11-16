@@ -149,6 +149,24 @@ jobs:
           paths = ['''^backend/tests/test_tracing_guard\.py$''']
           TOML
           fi
+          # The same reviewed sign-in webhook in platform history, bound to the exact
+          # commits that added or carried it, so any new commit on the path still fails.
+          if [[ "${REPOSITORY:-}" == '60xAI/ai-brain-platform' ]]; then
+            cat >> "$config" <<'TOML'
+          [[allowlists]]
+          description = "Reviewed sign-in webhook kept by its owner (ai-brain-platform#1601)"
+          condition = "AND"
+          targetRules = ["slack-webhook-url"]
+          commits = [
+            "3757fbb3bfabef696925b9ee9400e1244fbb202f",
+            "43c569cf72e695d023c58593d3e7003a1e9bb5a9",
+            "9799135ec5da6b000ebbadb135052b255fd768fa",
+            "b83bddef41260358273cad325809e11801d2977c",
+            "dd8da03b435323738d8b2d93f77d108b3613af6b",
+          ]
+          paths = ['''^backend/app/api/routes/auth\.py$''']
+          TOML
+          fi
           log_opts='--all --diff-merges=first-parent'
           if [[ "$FULL_HISTORY" != true ]]; then
             [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ && "$HEAD_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Missing valid scan range'; exit 2; }
