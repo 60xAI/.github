@@ -165,6 +165,136 @@ jobs:
             "dd8da03b435323738d8b2d93f77d108b3613af6b",
           ]
           paths = ['''^backend/app/api/routes/auth\.py$''']
+          # Reviewed fixtures, placeholders, a public OAuth client ID, a Secret Manager
+          # name and file hashes, each bound to the commits that added or carried it.
+          [[allowlists]]
+          description = "Lead-scoring golden-set fixture identifier"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "033d70998725362cc0491cabd97e9c8808113eab",
+            "07eb092b048f7d3ba6b12acfca617fc9914c0dd2",
+            "61e25aa06b363ea4b17cb3d6b116d4a5a88012e0",
+          ]
+          paths = ['''^backend/app/services/lead_scoring/golden_set/scores\.py$''']
+          [[allowlists]]
+          description = "OAuth client ID and Secret Manager secret name in Cloud Build config"
+          condition = "AND"
+          targetRules = ["60x-oauth-client-secret", "generic-api-key"]
+          commits = [
+            "11d92799168c510dad80985a28842c3f18de0322",
+            "2c0c8746cf3c478e63fb0ff8126ad4413ea0a4bd",
+            "83437d6bb6618aff40d7d647dead07bfa4726c35",
+            "eb9330ed1ba90a21b6558fc0bf52f9f6cf5fb294",
+          ]
+          paths = ['''^backend/cloudbuild\.yaml$''']
+          [[allowlists]]
+          description = "Fake credential in a connector storage-error test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "65f4034c9fa540433a149711ae8391cb0ea9e749",
+            "ad5ef0c15aa1769d79b56b988e195060393cfb69",
+          ]
+          paths = ['''^backend/tests/api/test_connectors_credential_storage_errors\.py$''']
+          [[allowlists]]
+          description = "Fake tokens in MCP OAuth tests"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "50bef15aff7477e0ff9d1509f5182a564b91a264",
+            "8abae33d7d3bf1d6c934927da926390baa4a9e95",
+            "cc583a4a32ce95d8b0aab924655e532181a0ab3e",
+          ]
+          paths = ['''^backend/tests/api/test_mcp_oauth\.py$''']
+          [[allowlists]]
+          description = "Fake key in a source-directory guard test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "cda49288259943431f3300f4828ad3597a4f4a94",
+          ]
+          paths = ['''^backend/tests/api/test_source_directory_guards_postgres\.py$''']
+          [[allowlists]]
+          description = "Fake key and private-key fixtures in an Airbyte log-redaction test"
+          condition = "AND"
+          targetRules = ["gcp-service-account-private-key", "generic-api-key", "private-key"]
+          commits = [
+            "5c54feaaa163782cfae10a6f01cf06d1a5b90d6d",
+            "8ad9d2b83233cbf09391e5d3091736b3ebb9e320",
+            "980d603ddae3faddbe64f662ca97693739c9ee6a",
+            "d3ac27f12414439eb0e736ff2f73cfc35609b214",
+          ]
+          paths = ['''^backend/tests/services/test_airbyte_error_logging\.py$''']
+          [[allowlists]]
+          description = "Fake private-key fixture in an error-sanitizer test"
+          condition = "AND"
+          targetRules = ["private-key"]
+          commits = [
+            "77e218a0bc26604dcb89bef67574718fb4345cc8",
+          ]
+          paths = ['''^backend/tests/services/test_enrichment_error_sanitizer\.py$''']
+          [[allowlists]]
+          description = "Fake Slack config values in a connector test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "0f9c6655a457c3af0650d97b6b320d14cd93226f",
+            "492f9a21207d52d434c798aba589ee6a7f61498c",
+            "a91f90e815dba18f1104a94ff02cd4d0339bd46c",
+            "b63e84d933c6ce5c3cdba5afe3d6c36d7520c884",
+          ]
+          paths = ['''^backend/tests/services/test_slack_connector_config\.py$''']
+          [[allowlists]]
+          description = "Fake tokens in an access-log redaction test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "0b6d9ead7fdda180ccf8c9e4a24805fb6f67562c",
+            "60eb8264af7ab798227538539c8838aba6e5e5fe",
+            "815c198765629c457f8beba791a41bd296af1302",
+            "8299e38c002522cbd337e3c216cdc449b2279758",
+            "a3c159f8c5143a4a4db0f27129233b5506b853e0",
+          ]
+          paths = ['''^backend/tests/test_uvicorn_access_log\.py$''']
+          [[allowlists]]
+          description = "Placeholder auth header in entity-retriever docs"
+          condition = "AND"
+          targetRules = ["curl-auth-header"]
+          commits = [
+            "14b98c3326beb2dc93dc16a842cd955de43672e9",
+            "25d5d384ba114c774bf89366252c24d7858309f7",
+            "7f623fc03a6a71b42ab3a982b84a633edc7bfa7d",
+          ]
+          paths = ['''^docs/entity-retriever-external-integration\.md$''', '''^docs/entity-retriever-quick-start\.md$''']
+          [[allowlists]]
+          description = "Fake token in an auth analytics test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "50bb14631d4ec00636ea4adc3a5bbdb75cc974f2",
+            "6d4eec44b51e32d426f435d5b37ce59fd2c4648a",
+            "d00bd24cd1adb7d190b99f98ae8cbc6e2b19e3b1",
+          ]
+          paths = ['''^frontend/lib/auth-analytics\.test\.ts$''']
+          [[allowlists]]
+          description = "Fake token in an auth URL contract test"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "0bdbd51dda1ec238494e5e9503d05a9984218432",
+            "12f5b4c81d6f8f7cff2c98912d71a10a4c8a47da",
+            "7dcb84cbbe132155b9dbe8c3cbe310e28b82ace6",
+          ]
+          paths = ['''^frontend/lib/auth-url-contracts\.test\.ts$''']
+          [[allowlists]]
+          description = "SHA-256 file hashes in the Rust MCP SQL manifest"
+          condition = "AND"
+          targetRules = ["generic-api-key"]
+          commits = [
+            "fae366492660e48d8bee0b041dd842107a4e2e32",
+          ]
+          paths = ['''^mcp-server-rs/sql/personal/manifest\.json$''']
           TOML
           fi
           log_opts='--all --diff-merges=first-parent'

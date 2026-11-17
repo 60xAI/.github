@@ -203,6 +203,32 @@ class SecretScanTest(unittest.TestCase):
             report = json.loads((scratch/'gitleaks-findings.json').read_text())
             self.assertIn({'path': filename, 'rule_id': 'slack-webhook-url'}, report)
 
+    def test_platform_fixture_exceptions_only_cover_their_own_commits(self):
+        # The platform fixture exceptions are bound to exact historical commits, so a
+        # new credential on an excepted test path must still be blocked. Synthetic value.
+        key = 'lsv2_' + 'Q7mZp3Lx9KvR2tYwB8nC'
+        filename = 'backend/tests/test_uvicorn_access_log.py'
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp, 'repo'); repo.mkdir()
+            scratch = Path(tmp, 'runner'); scratch.mkdir()
+            for args in [('init', '-q'), ('config', 'user.name', 'Security Test'),
+                         ('config', 'user.email', 'test@example.invalid')]:
+                self.assertEqual(run('git', *args, cwd=repo).returncode, 0)
+            target = repo / filename
+            target.parent.mkdir(parents=True)
+            target.write_text(f'API_KEY = "{key}"\n')
+            self.commit(repo, 'Synthetic key on an excepted fixture path')
+            env = os.environ | {'RUNNER_TEMP': str(scratch),
+                                'GITHUB_STEP_SUMMARY': str(scratch/'summary'),
+                                'GITHUB_OUTPUT': str(scratch/'output'),
+                                'FULL_HISTORY': 'true', 'BASE_SHA': '', 'HEAD_SHA': '',
+                                'REPOSITORY': '60xAI/ai-brain-platform'}
+            result = run('bash', '-c', scan_script(), cwd=repo, env=env)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn('result=10', (scratch/'output').read_text())
+            report = json.loads((scratch/'gitleaks-findings.json').read_text())
+            self.assertIn({'path': filename, 'rule_id': 'generic-api-key'}, report)
+
     def commit(self, repo, message):
         self.assertEqual(run('git', 'add', '.', cwd=repo).returncode, 0)
         self.assertEqual(run('git', 'commit', '-qm', message, cwd=repo).returncode, 0)
